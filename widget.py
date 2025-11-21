@@ -2,6 +2,18 @@ import tkinter as tk
 import win32gui
 import win32con
 from datetime import date
+import requests
+
+def get_quote():
+    try:
+        r = requests.get("https://zenquotes.io/api/random", timeout=5)
+        data = r.json()[0]
+        quote = data['q']
+        author = data['a']
+        return f"“{quote}”\n— {author}"
+    except Exception as e:
+        # fallback if internet is down or API fails
+        return "“Keep going, everything you need will come at the perfect time.”\n— Unknown"
 
 
 # -------------------------
@@ -77,7 +89,7 @@ def draw_ui():
     # quote text
     canvas.create_text(
         WIDTH//2, HEIGHT//2,
-        text=get_daily_quote(),
+        text=get_quote(),
         fill="#FFFFFF",
         font=("Segoe UI", 16, "bold"),
         width=300,
