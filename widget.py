@@ -5,7 +5,7 @@ import os
 import random
 
 # -----------------------------
-# Quotes list
+# Quotes
 # -----------------------------
 QUOTES = [
     "Believe in yourself!",
@@ -18,20 +18,15 @@ QUOTES = [
 SAVE_FILE = "daily_quote.json"
 
 
-# -----------------------------
-# Load or generate today's quote
-# -----------------------------
 def get_daily_quote():
     today = datetime.date.today().isoformat()
 
-    # if save file exists, check the date
     if os.path.exists(SAVE_FILE):
         with open(SAVE_FILE, "r") as f:
             data = json.load(f)
             if data["date"] == today:
                 return data["quote"]
 
-    # otherwise pick a new quote
     quote = random.choice(QUOTES)
 
     with open(SAVE_FILE, "w") as f:
@@ -44,38 +39,71 @@ def get_daily_quote():
 # UI Setup
 # -----------------------------
 root = tk.Tk()
-root.title("Daily Quote")
-root.geometry("350x130")
-root.resizable(False, False)
-root.attributes("-topmost", True)  # always on top
-root.overrideredirect(True)        # hide title bar
+root.title("Daily Quote Widget")
+root.overrideredirect(True)
+root.attributes("-topmost", True)
+
+WIDTH = 360
+HEIGHT = 140
+RADIUS = 20
+
+# Create rounded-corner frame using a canvas mask
+canvas = tk.Canvas(root, width=WIDTH, height=HEIGHT, highlightthickness=0, bg="white")
+canvas.pack()
+
+# Rounded rectangle helper
+def round_rect(x1, y1, x2, y2, r, **kwargs):
+    points = [
+        x1+r, y1,
+        x2-r, y1,
+        x2, y1,
+        x2, y1+r,
+        x2, y2-r,
+        x2, y2,
+        x2-r, y2,
+        x1+r, y2,
+        x1, y2,
+        x1, y2-r,
+        x1, y1+r,
+        x1, y1
+    ]
+    return canvas.create_polygon(points, smooth=True, **kwargs)
+
+
+# Light blue background
+round_rect(0, 0, WIDTH, HEIGHT, RADIUS, fill="#67B8FF", outline="#67B8FF")
+
+# Quote text
+quote = get_daily_quote()
+text = canvas.create_text(
+    WIDTH/2,
+    HEIGHT/2 - 10,
+    text=quote,
+    fill="white",
+    font=("Segoe UI", 12, "bold"),
+    width=300,
+    justify="center"
+)
+
+# Close button (small circle)
+def close_widget(event=None):
+    root.destroy()
+
+canvas.create_text(WIDTH - 25, 25, text="×", fill="white",
+                   font=("Segoe UI", 20, "bold"), tags="close")
+canvas.tag_bind("close", "<Button-1>", close_widget)
 
 # Make window draggable
 def start_move(event):
     root.x = event.x
     root.y = event.y
 
-def stop_move(event):
-    root.x = None
-    root.y = None
-
 def do_move(event):
     x = root.winfo_pointerx() - root.x
     y = root.winfo_pointery() - root.y
     root.geometry(f"+{x}+{y}")
 
-root.bind("<ButtonPress-1>", start_move)
-root.bind("<ButtonRelease-1>", stop_move)
-root.bind("<B1-Motion>", do_move)
-
-# UI Background
-frame = tk.Frame(root, bg="#f2f2f2", bd=2, relief="flat")
-frame.pack(fill="both", expand=True)
-
-# Quote Label
-quote_text = get_daily_quote()
-label = tk.Label(frame, text=quote_text, font=("Segoe UI", 12), bg="#f2f2f2",
-                 wraplength=320, justify="center")
-label.pack(pady=20)
+canvas.bind("<ButtonPress-1>", start_move)
+canvas.bind("<B1-Motion>", do_move)
 
 root.mainloop()
