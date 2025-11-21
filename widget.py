@@ -1,9 +1,8 @@
 import tkinter as tk
-import ctypes
 import win32gui
 import win32con
-import win32api
 from datetime import date
+
 
 # -------------------------
 # DAILY QUOTES
@@ -17,101 +16,118 @@ QUOTES = [
 ]
 
 def get_daily_quote():
-    index = date.today().toordinal() % len(QUOTES)
-    return QUOTES[index]
+    idx = date.today().toordinal() % len(QUOTES)
+    return QUOTES[idx]
 
 
 # -------------------------
-# MAIN TRANSPARENT WIDGET
+# TRANSPARENT WIDGET
 # -------------------------
 root = tk.Tk()
-root.overrideredirect(True)       # Remove title bar
+root.overrideredirect(True)
+root.config(bg="white")
 root.wm_attributes("-transparentcolor", "white")
-root.configure(bg="white")
 
-# Window size
 WIDTH, HEIGHT = 360, 140
 
-canvas = tk.Canvas(root,
-                   width=WIDTH,
-                   height=HEIGHT,
-                   bg="white",
-                   highlightthickness=0)
+canvas = tk.Canvas(
+    root,
+    width=WIDTH,
+    height=HEIGHT,
+    bg="white",
+    highlightthickness=0
+)
 canvas.pack()
 
-# -------------------------
-# DRAW GLASSMORPHISM BOX
-# -------------------------
-def draw_glass():
-    # rounded rectangle (background)
-    radius = 25
-    x1, y1 = 0, 0
-    x2, y2 = WIDTH, HEIGHT
 
-    canvas.create_rectangle(
-        x1, y1, x2, y2,
-        fill="#FFFFFF20",   # transparent white (20% opacity)
-        outline="#FFFFFF40",
-        width=2
+# -------------------------
+# ROUNDED RECT UTIL
+# -------------------------
+def round_rect(x1, y1, x2, y2, r, fill, outline):
+    points = [
+        x1+r, y1,
+        x2-r, y1,
+        x2, y1+r,
+        x2, y2-r,
+        x2-r, y2,
+        x1+r, y2,
+        x1, y2-r,
+        x1, y1+r
+    ]
+    return canvas.create_polygon(
+        points, smooth=True,
+        fill=fill, outline=outline, width=2
     )
 
-    # text
+
+# -------------------------
+# DRAW GLASS CARD
+# -------------------------
+def draw_ui():
+    glass = "#F0F0F0"
+    border = "#FFFFFF"
+    shadow = "#D0D0D0"
+
+    # shadow layer
+    round_rect(3, 3, WIDTH-3, HEIGHT-3, 25, shadow, shadow)
+
+    # main card
+    round_rect(0, 0, WIDTH, HEIGHT, 25, glass, border)
+
+    # quote text
     canvas.create_text(
-        WIDTH//2,
-        HEIGHT//2,
+        WIDTH//2, HEIGHT//2,
         text=get_daily_quote(),
-        fill="white",
+        fill="#FFFFFF",
         font=("Segoe UI", 16, "bold"),
         width=300,
         justify="center"
     )
 
-draw_glass()
+draw_ui()
 
 
 # -------------------------
-# MAKE WINDOW MOVABLE
+# MOVE BY DRAGGING
 # -------------------------
-def start_move(event):
-    root.x = event.x
-    root.y = event.y
+def start_move(e):
+    root.x = e.x
+    root.y = e.y
 
-def do_move(event):
-    deltax = event.x - root.x
-    deltay = event.y - root.y
-    newx = root.winfo_x() + deltax
-    newy = root.winfo_y() + deltay
-    root.geometry(f"+{newx}+{newy}")
+def do_move(e):
+    dx = e.x - root.x
+    dy = e.y - root.y
+    root.geometry(f"+{root.winfo_x() + dx}+{root.winfo_y() + dy}")
 
 canvas.bind("<ButtonPress-1>", start_move)
 canvas.bind("<B1-Motion>", do_move)
 
 
 # -------------------------
-# SEND WINDOW TO DESKTOP LAYER
+# FORCE WIDGET TO ALWAYS STAY BEHIND OTHER WINDOWS
 # -------------------------
-root.update_idletasks()
-hwnd = win32gui.FindWindow(None, str(root.title()))
+def push_to_back():
+    hwnd = win32gui.GetForegroundWindow()
+    my_hwnd = win32gui.FindWindow(None, str(root.title()))
 
-# Put window behind icons (desktop level)
-hdesktop = win32gui.FindWindow("Progman", None)
-win32gui.SetParent(hwnd, hdesktop)
+    # place window at bottom of Z-order
+    win32gui.SetWindowPos(
+        my_hwnd,
+        win32con.HWND_BOTTOM,
+        0, 0, 0, 0,
+        win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_NOACTIVATE
+    )
 
-# Make click-through background but clickable inside
-win32gui.SetWindowLong(hwnd,
-                       win32con.GWL_EXSTYLE,
-                       win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE)
-                       | win32con.WS_EX_LAYERED)
+    root.after(500, push_to_back)
 
-win32gui.SetLayeredWindowAttributes(hwnd, 0, 255, win32con.LWA_ALPHA)
+root.after(500, push_to_back)
 
 
 # -------------------------
 # CENTER ON SCREEN
 # -------------------------
-screen_w = root.winfo_screenwidth()
-screen_h = root.winfo_screenheight()
-root.geometry(f"{WIDTH}x{HEIGHT}+{screen_w//2 - WIDTH//2}+{screen_h//2 - HEIGHT//2}")
-
+sw = root.winfo_screenwidth()
+sh = root.winfo_screenheight()
+root.geometry(f"{WIDTH}x{HEIGHT}+{sw//2 - WIDTH//2}+{sh//2 - HEIGHT//2}")
 
 root.mainloop()
